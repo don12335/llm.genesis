@@ -47,13 +47,6 @@ g++ -std=c++17 -O2 src/main.cpp src/vm.cpp -o bin/llm_genesis.exe
 python tools/compiler_manifest.py
 ```
 
-## Usage
-
-To initiate a sovereign inference session, use the provided CLI terminal:
-```powershell
-python tools/chat_genesis.py
-```
-
 ## Design Philosophy
 
 LLM.Genesis is built on the principle of computational sovereignty. By reducing the inference engine to its most fundamental primitives, the system ensures that intelligence can reside locally, operate predictably, and remain entirely independent of external cloud infrastructures or proprietary stack dependencies.

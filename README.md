@@ -1,6 +1,6 @@
 # LLM.Genesis: Native Inference Substrate
 
-> ### https://github.com/don12335/Genesis
+> https://github.com/don12335/Genesis
 
 LLM.Genesis is a high-performance, self-contained inference engine designed to execute large language models within a minimalist virtual environment. By utilizing a custom Genesis Compute System (GCS) Virtual Machine, the project achieves hardware-agnostic, zero-dependency inference on a strict 64KB SRAM memory substrate.
 

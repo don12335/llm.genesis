@@ -1,13 +1,6 @@
-#include "vm.h"
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <string>
-#include <cstdlib>
-#include <ctime>
-#include <cstring>
 #include <cmath>
 #include <immintrin.h>
+#include <omp.h>
 
 GenesisVM vm;
 
@@ -180,6 +173,7 @@ void GenesisVM::step() {
                 float scale;
                 std::memcpy(&scale, &memory[ip], 4); ip += 4;
                 
+                #pragma omp parallel for collapse(2)
                 for (int i = 0; i < M; i++) {
                     for (int j = 0; j < N; j++) {
                         int32_t sum = 0;
@@ -207,6 +201,7 @@ void GenesisVM::step() {
                 const float* __restrict pB = (const float*)&memory[addrB];
                 float* __restrict pC = (float*)&memory[addrC];
 
+                #pragma omp parallel for collapse(2)
                 for (int i = 0; i < M; i++) {
                     for (int j = 0; j < N; j++) {
                         __m256 vsum = _mm256_setzero_ps();

@@ -189,7 +189,7 @@ void GenesisVM::step() {
                             sum += (int32_t)va * (int32_t)vb;
                         }
                         float fsum = (float)sum * scale;
-                        std::memcpy(&memory[addrC + (i * N + j) * 4], &fsum, 4);
+                        *(float*)&memory[addrC + (i * N + j) * 4] = fsum;
                     }
                 }
                 break;
@@ -203,13 +203,17 @@ void GenesisVM::step() {
                 uint16_t addrB = memory[ip] | (memory[ip+1] << 8); ip += 2;
                 uint16_t addrC = memory[ip] | (memory[ip+1] << 8); ip += 2;
                 
+                const float* __restrict pA = (const float*)&memory[addrA];
+                const float* __restrict pB = (const float*)&memory[addrB];
+                float* __restrict pC = (float*)&memory[addrC];
+
                 for (int i = 0; i < M; i++) {
                     for (int j = 0; j < N; j++) {
                         __m256 vsum = _mm256_setzero_ps();
                         int k = 0;
                         for (; k <= K - 8; k += 8) {
-                            __m256 va = _mm256_loadu_ps((float*)&memory[addrA + (i * K + k) * 4]);
-                            __m256 vb = _mm256_loadu_ps((float*)&memory[addrB + (j * K + k) * 4]);
+                            __m256 va = _mm256_loadu_ps(&pA[i * K + k]);
+                            __m256 vb = _mm256_loadu_ps(&pB[j * K + k]);
                             vsum = _mm256_fmadd_ps(va, vb, vsum);
                         }
                         
@@ -219,12 +223,9 @@ void GenesisVM::step() {
                                     result[4] + result[5] + result[6] + result[7];
                         
                         for (; k < K; k++) {
-                            float va, vb;
-                            std::memcpy(&va, &memory[addrA + (i * K + k) * 4], 4);
-                            std::memcpy(&vb, &memory[addrB + (j * K + k) * 4], 4);
-                            sum += va * vb;
+                            sum += pA[i * K + k] * pB[j * K + k];
                         }
-                        std::memcpy(&memory[addrC + (i * N + j) * 4], &sum, 4);
+                        pC[i * N + j] = sum;
                     }
                 }
                 break;
@@ -233,11 +234,10 @@ void GenesisVM::step() {
                 uint16_t a = memory[ip] | (memory[ip+1] << 8); ip += 2;
                 uint16_t b = memory[ip] | (memory[ip+1] << 8); ip += 2;
                 uint16_t c = memory[ip] | (memory[ip+1] << 8); ip += 2;
-                float fa, fb;
-                std::memcpy(&fa, &memory[a], 4);
-                std::memcpy(&fb, &memory[b], 4);
+                float fa = *(float*)&memory[a];
+                float fb = *(float*)&memory[b];
                 float fc = fa + fb;
-                std::memcpy(&memory[c], &fc, 4);
+                *(float*)&memory[c] = fc;
                 break;
             }
             case FMUL: {

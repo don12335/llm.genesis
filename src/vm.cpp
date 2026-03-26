@@ -7,6 +7,7 @@
 #include <ctime>
 #include <cstring>
 #include <cmath>
+#include <immintrin.h>
 
 GenesisVM vm;
 
@@ -169,22 +170,26 @@ void GenesisVM::step() {
                 break;
             }
             case MATMUL: {
-                // OpCode 0x50: MATMUL M K N AddrA(2) AddrB(2) AddrC(2)
-                uint8_t M = memory[ip++];
-                uint8_t K = memory[ip++];
-                uint8_t N = memory[ip++];
+                // OpCode 0x50: MATMUL M(2) K(2) N(2) AddrA(2) AddrB(2) AddrC(2) Scale(F)
+                uint16_t M = memory[ip] | (memory[ip+1] << 8); ip += 2;
+                uint16_t K = memory[ip] | (memory[ip+1] << 8); ip += 2;
+                uint16_t N = memory[ip] | (memory[ip+1] << 8); ip += 2;
                 uint16_t addrA = memory[ip] | (memory[ip+1] << 8); ip += 2;
                 uint16_t addrB = memory[ip] | (memory[ip+1] << 8); ip += 2;
                 uint16_t addrC = memory[ip] | (memory[ip+1] << 8); ip += 2;
+                float scale;
+                std::memcpy(&scale, &memory[ip], 4); ip += 4;
                 
                 for (int i = 0; i < M; i++) {
                     for (int j = 0; j < N; j++) {
-                        int sum = 0;
+                        int32_t sum = 0;
                         for (int k = 0; k < K; k++) {
-                            sum += memory[(addrA + i * K + k) % 65536] * 
-                                   memory[(addrB + k * N + j) % 65536];
+                            int8_t va = (int8_t)memory[addrA + (i * K + k)];
+                            int8_t vb = (int8_t)memory[addrB + (j * K + k)];
+                            sum += (int32_t)va * (int32_t)vb;
                         }
-                        memory[(addrC + i * N + j) % 65536] = (uint8_t)(sum & 0xFF);
+                        float fsum = (float)sum * scale;
+                        std::memcpy(&memory[addrC + (i * N + j) * 4], &fsum, 4);
                     }
                 }
                 break;
@@ -200,11 +205,22 @@ void GenesisVM::step() {
                 
                 for (int i = 0; i < M; i++) {
                     for (int j = 0; j < N; j++) {
-                        float sum = 0;
-                        for (int k = 0; k < K; k++) {
+                        __m256 vsum = _mm256_setzero_ps();
+                        int k = 0;
+                        for (; k <= K - 8; k += 8) {
+                            __m256 va = _mm256_loadu_ps((float*)&memory[addrA + (i * K + k) * 4]);
+                            __m256 vb = _mm256_loadu_ps((float*)&memory[addrB + (j * K + k) * 4]);
+                            vsum = _mm256_fmadd_ps(va, vb, vsum);
+                        }
+                        
+                        float result[8];
+                        _mm256_storeu_ps(result, vsum);
+                        float sum = result[0] + result[1] + result[2] + result[3] + 
+                                    result[4] + result[5] + result[6] + result[7];
+                        
+                        for (; k < K; k++) {
                             float va, vb;
                             std::memcpy(&va, &memory[addrA + (i * K + k) * 4], 4);
-                            // Weights are [N][K] (Out, In) like PyTorch
                             std::memcpy(&vb, &memory[addrB + (j * K + k) * 4], 4);
                             sum += va * vb;
                         }

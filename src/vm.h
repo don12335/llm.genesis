@@ -1,8 +1,3 @@
-/*
- * PROJECT: LLM.Genesis
- * SUBSYSTEM: Native Inference Substrate
- * DESCRIPTION: Header definitions for the high-performance GCS Virtual Machine.
- */
 #ifndef GENESIS_VM_H
 #define GENESIS_VM_H
 
@@ -34,7 +29,7 @@ enum OpCode : uint8_t {
 };
 
 struct GenesisVM {
-    uint8_t memory[65536];
+    alignas(32) uint8_t memory[65536];
     uint16_t r[16];
     uint16_t ip;
     uint16_t sp;
